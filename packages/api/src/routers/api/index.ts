@@ -2,6 +2,7 @@ import aiRouter from './ai';
 import alertsRouter from './alerts';
 import dashboardRouter from './dashboards';
 import meRouter from './me';
+import projectRouter from './project';
 import rootRouter from './root';
 import teamRouter from './team';
 import webhooksRouter from './webhooks';
@@ -11,6 +12,7 @@ export default {
   alertsRouter,
   dashboardRouter,
   meRouter,
+  projectRouter,
   rootRouter,
   teamRouter,
   webhooksRouter,

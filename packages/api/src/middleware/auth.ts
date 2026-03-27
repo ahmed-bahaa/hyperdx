@@ -6,7 +6,29 @@ import { serializeError } from 'serialize-error';
 import * as config from '@/config';
 import { findUserByAccessKey } from '@/controllers/user';
 import type { UserDocument } from '@/models/user';
+import type { UserRole } from '@/models/user';
 import logger from '@/utils/logger';
+
+const ROLE_HIERARCHY: Record<UserRole, number> = {
+  owner: 40,
+  admin: 30,
+  member: 20,
+  viewer: 10,
+};
+
+export function hasMinRole(userRole: UserRole, minRole: UserRole): boolean {
+  return (ROLE_HIERARCHY[userRole] ?? 0) >= ROLE_HIERARCHY[minRole];
+}
+
+export function requireRole(minRole: UserRole) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const role = (req.user as UserDocument | undefined)?.role ?? 'member';
+    if (!hasMinRole(role, minRole)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    next();
+  };
+}
 
 declare global {
   namespace Express {

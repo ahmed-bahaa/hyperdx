@@ -9,6 +9,7 @@ import {
   Divider,
   Group,
   Modal,
+  Select,
   Stack,
   Table,
   Text,
@@ -20,11 +21,19 @@ import { IconLock, IconUserPlus } from '@tabler/icons-react';
 import api from '@/api';
 import { useBrandDisplayName } from '@/theme/ThemeProvider';
 
+const ROLE_COLORS: Record<string, string> = {
+  owner: 'violet',
+  admin: 'blue',
+  member: 'green',
+  viewer: 'gray',
+};
+
 export default function TeamMembersSection() {
   const brandName = useBrandDisplayName();
-  const hasAdminAccess = true;
+  const { data: me } = api.useMe();
+  const myRole = me?.role ?? 'member';
+  const hasAdminAccess = myRole === 'owner' || myRole === 'admin';
 
-  const { data: team } = api.useTeam();
   const {
     data: members,
     isLoading: isLoadingMembers,
@@ -37,8 +46,16 @@ export default function TeamMembersSection() {
     refetch: refetchInvitations,
   } = api.useTeamInvitations();
 
-  const onSubmitTeamInviteForm = ({ email }: { email: string }) => {
-    sendTeamInviteAction(email);
+  const updateMemberRole = api.useUpdateMemberRole();
+
+  const onSubmitTeamInviteForm = ({
+    email,
+    role,
+  }: {
+    email: string;
+    role: 'admin' | 'member' | 'viewer';
+  }) => {
+    sendTeamInviteAction(email, role);
     setTeamInviteModalShow(false);
   };
 
@@ -60,10 +77,13 @@ export default function TeamMembersSection() {
   const deleteTeamMember = api.useDeleteTeamMember();
   const deleteTeamInvitation = api.useDeleteTeamInvitation();
 
-  const sendTeamInviteAction = (email: string) => {
+  const sendTeamInviteAction = (
+    email: string,
+    role: 'admin' | 'member' | 'viewer',
+  ) => {
     if (email) {
       saveTeamInvitation.mutate(
-        { email },
+        { email, role },
         {
           onSuccess: () => {
             notifications.show({
@@ -88,7 +108,6 @@ export default function TeamMembersSection() {
                   notifications.show({
                     color: 'red',
                     message: `Something went wrong. Please contact ${brandName} team.`,
-
                     autoClose: 5000,
                   });
                 });
@@ -145,7 +164,6 @@ export default function TeamMembersSection() {
                   notifications.show({
                     color: 'red',
                     message: `Something went wrong. Please contact ${brandName} team.`,
-
                     autoClose: 5000,
                   });
                 });
@@ -161,6 +179,7 @@ export default function TeamMembersSection() {
       );
     }
   };
+
   const deleteTeamMemberAction = (id: string) => {
     if (id) {
       deleteTeamMember.mutate(
@@ -204,6 +223,27 @@ export default function TeamMembersSection() {
     }
   };
 
+  const handleRoleChange = (
+    userId: string,
+    role: 'admin' | 'member' | 'viewer',
+  ) => {
+    updateMemberRole.mutate(
+      { userId, role },
+      {
+        onSuccess: () => {
+          notifications.show({ color: 'green', message: 'Role updated' });
+          refetchMembers();
+        },
+        onError: () => {
+          notifications.show({
+            color: 'red',
+            message: 'Failed to update role',
+          });
+        },
+      },
+    );
+  };
+
   return (
     <Box id="team_members" data-testid="team-members-section">
       <Text size="md">Team Members</Text>
@@ -212,14 +252,16 @@ export default function TeamMembersSection() {
         <Card.Section withBorder py="sm" px="lg">
           <Group align="center" justify="space-between">
             <div className="fs-7">Team Members</div>
-            <Button
-              data-testid="invite-member-button"
-              variant="primary"
-              leftSection={<IconUserPlus size={16} />}
-              onClick={() => setTeamInviteModalShow(true)}
-            >
-              Invite Team Member
-            </Button>
+            {hasAdminAccess && (
+              <Button
+                data-testid="invite-member-button"
+                variant="primary"
+                leftSection={<IconUserPlus size={16} />}
+                onClick={() => setTeamInviteModalShow(true)}
+              >
+                Invite Team Member
+              </Button>
+            )}
           </Group>
         </Card.Section>
         <Card.Section>
@@ -250,20 +292,42 @@ export default function TeamMembersSection() {
                       </Group>
                     </Table.Td>
                     <Table.Td>
-                      {member.groupName && (
+                      {member.role && (
                         <Badge
                           variant="light"
-                          color="green"
+                          color={ROLE_COLORS[member.role] ?? 'gray'}
                           fw="normal"
-                          tt="none"
+                          tt="capitalize"
                         >
-                          {member.groupName}
+                          {member.role}
                         </Badge>
                       )}
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
-                      {!member.isCurrentUser && hasAdminAccess && (
-                        <Group justify="flex-end" gap="8">
+                      <Group justify="flex-end" gap="8">
+                        {hasAdminAccess &&
+                          !member.isCurrentUser &&
+                          member.role !== 'owner' && (
+                            <Select
+                              size="xs"
+                              value={member.role ?? 'member'}
+                              data={[
+                                { value: 'admin', label: 'Admin' },
+                                { value: 'member', label: 'Member' },
+                                { value: 'viewer', label: 'Viewer' },
+                              ]}
+                              onChange={val =>
+                                val &&
+                                member._id &&
+                                handleRoleChange(
+                                  member._id,
+                                  val as 'admin' | 'member' | 'viewer',
+                                )
+                              }
+                              w={100}
+                            />
+                          )}
+                        {!member.isCurrentUser && hasAdminAccess && (
                           <Button
                             size="compact-sm"
                             variant="danger"
@@ -277,8 +341,8 @@ export default function TeamMembersSection() {
                           >
                             Remove
                           </Button>
-                        </Group>
-                      )}
+                        )}
+                      </Group>
                     </Table.Td>
                   </Table.Tr>
                 ))}
@@ -397,14 +461,18 @@ function InviteTeamMemberForm({
   onSubmit,
 }: {
   isSubmitting?: boolean;
-  onSubmit: (arg0: { email: string }) => void;
+  onSubmit: (arg0: {
+    email: string;
+    role: 'admin' | 'member' | 'viewer';
+  }) => void;
 }) {
   const [email, setEmail] = useState<string>('');
+  const [role, setRole] = useState<'admin' | 'member' | 'viewer'>('member');
 
   return (
     <form
       onSubmit={e => {
-        onSubmit({ email });
+        onSubmit({ email, role });
         e.preventDefault();
       }}
     >
@@ -419,6 +487,16 @@ function InviteTeamMemberForm({
           required
           placeholder="you@company.com"
           withAsterisk={false}
+        />
+        <Select
+          label="Role"
+          value={role}
+          onChange={val => val && setRole(val as 'admin' | 'member' | 'viewer')}
+          data={[
+            { value: 'admin', label: 'Admin — can manage members & settings' },
+            { value: 'member', label: 'Member — can create & edit resources' },
+            { value: 'viewer', label: 'Viewer — read-only access' },
+          ]}
         />
         <div className="fs-8">
           The invite link will automatically expire after 30 days.

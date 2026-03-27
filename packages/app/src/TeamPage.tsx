@@ -20,6 +20,7 @@ import { PageHeader } from './components/PageHeader';
 import ApiKeysSection from './components/TeamSettings/ApiKeysSection';
 import ConnectionsSection from './components/TeamSettings/ConnectionsSection';
 import IntegrationsSection from './components/TeamSettings/IntegrationsSection';
+import ProjectsSection from './components/TeamSettings/ProjectsSection';
 import SecurityPoliciesSection from './components/TeamSettings/SecurityPoliciesSection';
 import SourcesSection from './components/TeamSettings/SourcesSection';
 import TeamMembersSection from './components/TeamSettings/TeamMembersSection';
@@ -54,11 +55,13 @@ export default function TeamPage() {
   const router = useRouter();
   const { data: team, refetch: refetchTeam, isLoading } = api.useTeam();
   const { data: installation } = api.useInstallation();
+  const { data: me } = api.useMe();
   const setTeamName = api.useSetTeamName();
   const allowedAuthMethods = team?.allowedAuthMethods ?? [];
   const isEntraConfigured = installation?.isEntraEnabled === true;
+  const myRole = me?.role ?? 'member';
+  const hasAdminAccess = myRole === 'owner' || myRole === 'admin';
 
-  const hasAdminAccess = true;
   const [isEditingTeamName, setIsEditingTeamName] = useState(false);
   const form = useForm<{ name: string }>({
     defaultValues: { name: team?.name },
@@ -111,6 +114,16 @@ export default function TeamPage() {
         {
           id: 'team-members',
           content: <TeamMembersSection />,
+        },
+      ],
+    },
+    {
+      value: 'projects',
+      label: 'Projects',
+      sections: [
+        {
+          id: 'team-projects',
+          content: <ProjectsSection />,
         },
       ],
     },

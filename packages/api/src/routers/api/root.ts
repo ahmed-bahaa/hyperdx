@@ -113,6 +113,7 @@ router.post(
           });
           user.team = team._id;
           user.name = email;
+          user.role = 'owner';
           await user.save();
 
           // Set up default connections and sources for this new team
@@ -178,6 +179,7 @@ router.post('/team/setup/:token', async (req, res, next) => {
         email: teamInvite.email,
         name: teamInvite.email,
         team: teamInvite.teamId,
+        role: teamInvite.role ?? 'member',
       }),
       password, // TODO: validate password
       async (err: Error, user: any) => {
@@ -286,10 +288,13 @@ router.get('/auth/callback/entra', async (req, res, next) => {
       }
 
       // Create the user without a password (Entra-only auth)
+      // First Entra user gets owner; subsequent users get member
+      const isFirstUser = !(await isTeamExisting());
       user = new User({
         email: userInfo.email,
         name: userInfo.name,
         team: teamId,
+        role: isFirstUser ? 'owner' : 'member',
       });
       await user.save();
 

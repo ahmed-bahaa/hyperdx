@@ -26,12 +26,17 @@ import {
   deleteTeamMember,
   findUserByEmail,
   findUsersByTeam,
+  updateUserRole,
 } from '@/controllers/user';
+import { requireRole } from '@/middleware/auth';
 import TeamInvite from '@/models/teamInvite';
 import { sendJson } from '@/utils/serialization';
 import { objectIdSchema } from '@/utils/zod';
 
 const router = express.Router();
+
+// Admin-only: rotate API key
+// (requireRole applied inline below)
 
 type TeamApiExpRes = express.Response<TeamApiResponse>;
 router.get('/', async (req, res: TeamApiExpRes, next) => {
@@ -65,24 +70,29 @@ router.get('/', async (req, res: TeamApiExpRes, next) => {
 });
 
 type RotateApiKeyExpRes = express.Response<RotateApiKeyApiResponse>;
-router.patch('/apiKey', async (req, res: RotateApiKeyExpRes, next) => {
-  try {
-    const teamId = req.user?.team;
-    if (teamId == null) {
-      throw new Error(`User ${req.user?._id} not associated with a team`);
+router.patch(
+  '/apiKey',
+  requireRole('admin'),
+  async (req, res: RotateApiKeyExpRes, next) => {
+    try {
+      const teamId = req.user?.team;
+      if (teamId == null) {
+        throw new Error(`User ${req.user?._id} not associated with a team`);
+      }
+      const team = await rotateTeamApiKey(teamId);
+      if (team?.apiKey == null) {
+        throw new Error(`Failed to rotate API key for team ${teamId}`);
+      }
+      res.json({ newApiKey: team.apiKey });
+    } catch (e) {
+      next(e);
     }
-    const team = await rotateTeamApiKey(teamId);
-    if (team?.apiKey == null) {
-      throw new Error(`Failed to rotate API key for team ${teamId}`);
-    }
-    res.json({ newApiKey: team.apiKey });
-  } catch (e) {
-    next(e);
-  }
-});
+  },
+);
 
 router.patch(
   '/name',
+  requireRole('admin'),
   validateRequest({
     body: z.object({
       name: z.string().min(1).max(100),
@@ -134,15 +144,17 @@ router.patch(
 
 router.post(
   '/invitation',
+  requireRole('admin'),
   validateRequest({
     body: z.object({
       email: z.string().email(),
       name: z.string().optional(),
+      role: z.enum(['admin', 'member', 'viewer']).optional().default('member'),
     }),
   }),
   async (req, res, next) => {
     try {
-      const { email: toEmail, name } = req.body;
+      const { email: toEmail, name, role } = req.body;
       const teamId = req.user?.team;
       const fromEmail = req.user?.email;
 
@@ -177,6 +189,7 @@ router.post(
           name,
           email: normalizedEmail,
           token: crypto.randomBytes(32).toString('hex'),
+          role: role ?? 'member',
         }).save();
       }
 
@@ -257,6 +270,7 @@ router.get('/members', async (req, res: TeamMembersExpRes, next) => {
           '_id',
           'email',
           'name',
+          'role',
           'hasPasswordAuth',
         ]),
         isCurrentUser: user._id.equals(userId),
@@ -267,8 +281,37 @@ router.get('/members', async (req, res: TeamMembersExpRes, next) => {
   }
 });
 
+router.patch(
+  '/member/:id/role',
+  requireRole('admin'),
+  validateRequest({
+    params: z.object({ id: objectIdSchema }),
+    body: z.object({ role: z.enum(['admin', 'member', 'viewer']) }),
+  }),
+  async (req, res, next) => {
+    try {
+      const teamId = req.user?.team;
+      if (teamId == null) {
+        throw new Error(`User ${req.user?._id} not associated with a team`);
+      }
+      const updated = await updateUserRole(
+        req.params.id,
+        teamId,
+        req.body.role,
+      );
+      if (!updated) {
+        return res.status(404).json({ error: 'Member not found' });
+      }
+      res.json({ role: updated.role });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
 router.delete(
   '/member/:id',
+  requireRole('admin'),
   validateRequest({
     params: z.object({
       id: objectIdSchema,

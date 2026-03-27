@@ -1230,10 +1230,14 @@ export const TeamApiResponseSchema = z.object({
 
 export type TeamApiResponse = z.infer<typeof TeamApiResponseSchema>;
 
+export const UserRoleSchema = z.enum(['owner', 'admin', 'member', 'viewer']);
+export type UserRole = z.infer<typeof UserRoleSchema>;
+
 export const TeamMemberSchema = z.object({
   _id: z.string(),
   email: z.string(),
   name: z.string().optional(),
+  role: UserRoleSchema.optional(),
   hasPasswordAuth: z.boolean(),
   isCurrentUser: z.boolean(),
   groupName: z.string().optional(),
@@ -1305,6 +1309,7 @@ export const MeApiResponseSchema = z.object({
   email: z.string(),
   id: z.string(),
   name: z.string(),
+  role: UserRoleSchema.optional(),
   team: TeamSchema.pick({
     id: true,
     name: true,
@@ -1316,3 +1321,34 @@ export const MeApiResponseSchema = z.object({
 });
 
 export type MeApiResponse = z.infer<typeof MeApiResponseSchema>;
+
+// ─── Projects ─────────────────────────────────────────────────────────────────
+
+export const ProjectRoleSchema = z.enum(['admin', 'editor', 'viewer']);
+export type ProjectRole = z.infer<typeof ProjectRoleSchema>;
+
+export const ProjectMemberSchema = z.object({
+  userId: z.string(),
+  email: z.string().optional(),
+  name: z.string().optional(),
+  role: ProjectRoleSchema,
+});
+export type ProjectMember = z.infer<typeof ProjectMemberSchema>;
+
+export const ProjectSchema = z.object({
+  _id: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  members: z.array(ProjectMemberSchema),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type Project = z.infer<typeof ProjectSchema>;
+
+export const ProjectsApiResponseSchema = z.object({
+  data: z.array(ProjectSchema),
+});
+export type ProjectsApiResponse = z.infer<typeof ProjectsApiResponseSchema>;
+
+export const ProjectApiResponseSchema = ProjectSchema;
+export type ProjectApiResponse = z.infer<typeof ProjectApiResponseSchema>;

@@ -5,12 +5,15 @@ import { v4 as uuidv4 } from 'uuid';
 
 type ObjectId = mongoose.Types.ObjectId;
 
+export type UserRole = 'owner' | 'admin' | 'member' | 'viewer';
+
 export interface IUser {
   _id: ObjectId;
   accessKey: string;
   createdAt: Date;
   email: string;
   name: string;
+  role: UserRole;
   team: ObjectId;
 }
 
@@ -22,6 +25,11 @@ const UserSchema = new Schema(
     email: {
       type: String,
       required: true,
+    },
+    role: {
+      type: String,
+      enum: ['owner', 'admin', 'member', 'viewer'],
+      default: 'member',
     },
     team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
     accessKey: {

@@ -31,9 +31,9 @@ const router = express.Router();
 
 router.get('/', async (req, res, next) => {
   try {
-    const { teamId } = getNonNullUserWithTeam(req);
+    const { teamId, userId } = getNonNullUserWithTeam(req);
 
-    const dashboards = await getDashboards(teamId);
+    const dashboards = await getDashboards(teamId, userId);
 
     return res.json(dashboards);
   } catch (e) {
