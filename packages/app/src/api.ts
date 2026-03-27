@@ -366,6 +366,19 @@ const api = {
         }).json<UpdateClickHouseSettingsApiResponse>(),
     });
   },
+  useUpdateAllowedAuthMethods() {
+    return useMutation<
+      { allowedAuthMethods: string[] },
+      HTTPError,
+      { allowedAuthMethods: string[] }
+    >({
+      mutationFn: async ({ allowedAuthMethods }) =>
+        hdxServer(`team/auth-methods`, {
+          method: 'PATCH',
+          json: { allowedAuthMethods },
+        }).json<{ allowedAuthMethods: string[] }>(),
+    });
+  },
   useTags() {
     return useQuery({
       queryKey: [`team/tags`],

@@ -53,9 +53,10 @@ export default function TeamPage() {
   const brandName = useBrandDisplayName();
   const router = useRouter();
   const { data: team, refetch: refetchTeam, isLoading } = api.useTeam();
+  const { data: installation } = api.useInstallation();
   const setTeamName = api.useSetTeamName();
   const allowedAuthMethods = team?.allowedAuthMethods ?? [];
-  const hasAllowedAuthMethods = allowedAuthMethods.length > 0;
+  const isEntraConfigured = installation?.isEntraEnabled === true;
 
   const hasAdminAccess = true;
   const [isEditingTeamName, setIsEditingTeamName] = useState(false);
@@ -113,24 +114,21 @@ export default function TeamPage() {
         },
       ],
     },
-    ...(hasAllowedAuthMethods
-      ? [
-          {
-            value: 'access',
-            label: 'Access',
-            sections: [
-              {
-                id: 'team-access-security-policies',
-                content: (
-                  <SecurityPoliciesSection
-                    allowedAuthMethods={allowedAuthMethods}
-                  />
-                ),
-              },
-            ],
-          },
-        ]
-      : []),
+    {
+      value: 'access',
+      label: 'Access',
+      sections: [
+        {
+          id: 'team-access-security-policies',
+          content: (
+            <SecurityPoliciesSection
+              allowedAuthMethods={allowedAuthMethods}
+              isEntraConfigured={isEntraConfigured}
+            />
+          ),
+        },
+      ],
+    },
     {
       value: 'integrations',
       label: 'Integrations',

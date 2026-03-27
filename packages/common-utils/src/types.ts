@@ -794,7 +794,7 @@ export const TeamSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    allowedAuthMethods: z.array(z.literal('password')).optional(),
+    allowedAuthMethods: z.array(z.enum(['password', 'entra'])).optional(),
     apiKey: z.string(),
     hookId: z.string(),
     collectorAuthenticationEnforced: z.boolean(),
@@ -1222,7 +1222,7 @@ export type WebhookTestApiResponse = z.infer<
 // Team
 export const TeamApiResponseSchema = z.object({
   _id: z.string(),
-  allowedAuthMethods: z.array(z.literal('password')).optional(),
+  allowedAuthMethods: z.array(z.enum(['password', 'entra'])).optional(),
   apiKey: z.string(),
   name: z.string(),
   createdAt: z.string(),
@@ -1291,6 +1291,7 @@ export type RotateApiKeyApiResponse = z.infer<
 // Installation
 export const InstallationApiResponseSchema = z.object({
   isTeamExisting: z.boolean(),
+  isEntraEnabled: z.boolean().optional(),
 });
 
 export type InstallationApiResponse = z.infer<

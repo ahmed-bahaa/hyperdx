@@ -23,6 +23,8 @@ declare module 'express-session' {
   interface Session {
     messages: string[]; // Set by passport
     passport: { user: string }; // Set by passport
+    entraState?: string; // PKCE state for Entra ID SSO
+    entraNonce?: string; // Nonce for Entra ID ID token validation
   }
 }
 

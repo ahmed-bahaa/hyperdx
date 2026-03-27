@@ -19,6 +19,7 @@ import {
   getTeam,
   rotateTeamApiKey,
   setTeamName,
+  updateAllowedAuthMethods,
   updateTeamClickhouseSettings,
 } from '@/controllers/team';
 import {
@@ -289,6 +290,30 @@ router.delete(
       await deleteTeamMember(teamId, userIdToDelete, userIdRequestingDelete);
 
       res.json({ message: 'User deleted' });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+router.patch(
+  '/auth-methods',
+  validateRequest({
+    body: z.object({
+      allowedAuthMethods: z.array(z.enum(['password', 'entra'])).min(1),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      const teamId = req.user?.team;
+      if (teamId == null) {
+        throw new Error(`User ${req.user?._id} not associated with a team`);
+      }
+
+      const { allowedAuthMethods } = req.body;
+      await updateAllowedAuthMethods(teamId, allowedAuthMethods);
+
+      res.json({ allowedAuthMethods });
     } catch (e) {
       next(e);
     }

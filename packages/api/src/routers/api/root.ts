@@ -9,11 +9,18 @@ import {
   generateAlertSilenceToken,
   silenceAlertByToken,
 } from '@/controllers/alerts';
-import { createTeam, isTeamExisting } from '@/controllers/team';
+import { createTeam, getFirstTeam, isTeamExisting } from '@/controllers/team';
+import { findUserByEmail } from '@/controllers/user';
 import { handleAuthError, redirectToDashboard } from '@/middleware/auth';
 import TeamInvite from '@/models/teamInvite';
 import User from '@/models/user'; // TODO -> do not import model directly
 import { setupTeamDefaults } from '@/setupDefaults';
+import {
+  generateEntraNonce,
+  generateEntraState,
+  getEntraAuthorizationUrl,
+  handleEntraCallback,
+} from '@/utils/entra';
 import logger from '@/utils/logger';
 import passport from '@/utils/passport';
 import { validatePassword } from '@/utils/validators';
@@ -60,6 +67,7 @@ router.get('/installation', async (_, res: InstallationEspRes, next) => {
     const _isTeamExisting = await isTeamExisting();
     return res.json({
       isTeamExisting: _isTeamExisting,
+      isEntraEnabled: config.IS_ENTRA_ENABLED,
     });
   } catch (e) {
     next(e);
@@ -194,6 +202,116 @@ router.post('/team/setup/:token', async (req, res, next) => {
     next(e);
   }
 });
+
+// ─── Entra ID (Microsoft Azure AD) SSO ───────────────────────────────────────
+
+router.get('/login/entra', async (req, res, next) => {
+  try {
+    if (!config.IS_ENTRA_ENABLED) {
+      return res.status(404).json({ error: 'Entra SSO is not configured' });
+    }
+
+    const state = generateEntraState();
+    const nonce = generateEntraNonce();
+
+    req.session.entraState = state;
+    req.session.entraNonce = nonce;
+
+    const authUrl = await getEntraAuthorizationUrl(state, nonce);
+    res.redirect(authUrl);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/auth/callback/entra', async (req, res, next) => {
+  try {
+    if (!config.IS_ENTRA_ENABLED) {
+      return res.status(404).json({ error: 'Entra SSO is not configured' });
+    }
+
+    const storedState = req.session.entraState;
+    const storedNonce = req.session.entraNonce;
+
+    if (!storedState || !storedNonce) {
+      logger.warn('Entra callback received without state/nonce in session');
+      return res.redirect(
+        `${config.FRONTEND_URL}/login?err=entraMissingSession`,
+      );
+    }
+
+    // Clear session values before callback validation to prevent replay
+    delete req.session.entraState;
+    delete req.session.entraNonce;
+
+    const currentUrl = `${config.ENTRA_REDIRECT_URI.replace(/\/[^/]*$/, '')}${req.originalUrl}`;
+
+    const userInfo = await handleEntraCallback(
+      currentUrl,
+      storedState,
+      storedNonce,
+    );
+
+    // Find or provision the user
+    let user = await findUserByEmail(userInfo.email);
+
+    if (!user) {
+      // Auto-provision: create user in the existing team (or create team on first login)
+      const teamExists = await isTeamExisting();
+
+      let teamId: import('mongoose').Types.ObjectId;
+      if (!teamExists) {
+        const team = await createTeam({
+          name: `${userInfo.email}'s Team`,
+          collectorAuthenticationEnforced: true,
+        });
+
+        try {
+          await setupTeamDefaults(team._id.toString());
+        } catch (error) {
+          logger.error(
+            { err: serializeError(error) },
+            'Failed to setup team defaults for Entra user',
+          );
+        }
+
+        teamId = team._id;
+      } else {
+        const team = await getFirstTeam();
+        if (!team) {
+          logger.error('No team found during Entra user provisioning');
+          return res.redirect(`${config.FRONTEND_URL}/login?err=entraNoTeam`);
+        }
+        teamId = team._id;
+      }
+
+      // Create the user without a password (Entra-only auth)
+      user = new User({
+        email: userInfo.email,
+        name: userInfo.name,
+        team: teamId,
+      });
+      await user.save();
+
+      logger.info(
+        { email: userInfo.email },
+        'Provisioned new user via Entra ID SSO',
+      );
+    }
+
+    req.login(user, err => {
+      if (err) {
+        return next(err);
+      }
+      redirectToDashboard(req, res);
+    });
+  } catch (e) {
+    logger.error({ err: serializeError(e) }, 'Entra SSO callback failed');
+    res.redirect(`${config.FRONTEND_URL}/login?err=entraFailed`);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 router.get('/ext/silence-alert/:token', async (req, res) => {
   let isError = false;
