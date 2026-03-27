@@ -6,13 +6,14 @@ import { HTTPError } from 'ky';
 import { SubmitHandler, useForm, useWatch } from 'react-hook-form';
 import {
   Button,
+  Divider,
   Notification,
   Paper,
   PasswordInput,
   Stack,
   TextInput,
 } from '@mantine/core';
-import { IconAt, IconLock } from '@tabler/icons-react';
+import { IconAt, IconBrandWindows, IconLock } from '@tabler/icons-react';
 
 import { useBrandDisplayName } from './theme/ThemeProvider';
 import api from './api';
@@ -53,6 +54,7 @@ export default function AuthPage({ action }: { action: 'register' | 'login' }) {
   const { err, msg } = router.query;
 
   const { data: installation } = api.useInstallation();
+  const isEntraEnabled = installation?.isEntraEnabled === true;
   const registerPassword = api.useRegisterPassword();
 
   const verificationSent = msg === 'verify';
@@ -214,6 +216,22 @@ export default function AuthPage({ action }: { action: 'register' | 'login' }) {
                         ? 'Register'
                         : 'Login'}
                   </Button>
+
+                  {!isRegister && isEntraEnabled && (
+                    <>
+                      <Divider label="or" labelPosition="center" />
+                      <Button
+                        component="a"
+                        href="/api/login/entra"
+                        variant="secondary"
+                        size="md"
+                        leftSection={<IconBrandWindows size={18} />}
+                        data-test-id="entra-sso-button"
+                      >
+                        Sign in with Microsoft
+                      </Button>
+                    </>
+                  )}
                 </Stack>
               </Paper>
 
@@ -234,7 +252,13 @@ export default function AuthPage({ action }: { action: 'register' | 'login' }) {
                           ? 'Password authentication is not allowed by your team admin.'
                           : err === 'teamAlreadyExists'
                             ? 'Team already exists, please login instead.'
-                            : 'Unknown error occurred, please try again later.'}
+                            : err === 'entraFailed'
+                              ? 'Microsoft SSO login failed, please try again.'
+                              : err === 'entraMissingSession'
+                                ? 'SSO session expired, please try again.'
+                                : err === 'entraNoTeam'
+                                  ? 'No team found. Please contact your administrator.'
+                                  : 'Unknown error occurred, please try again later.'}
                 </Notification>
               )}
 

@@ -57,3 +57,15 @@ export const AI_REQUEST_HEADERS = env.AI_REQUEST_HEADERS as string;
 
 // Legacy Anthropic-specific configuration (backward compatibility)
 export const ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY as string;
+
+// Microsoft Entra ID (Azure AD) SSO
+export const ENTRA_TENANT_ID = env.ENTRA_TENANT_ID as string;
+export const ENTRA_CLIENT_ID = env.ENTRA_CLIENT_ID as string;
+export const ENTRA_CLIENT_SECRET = env.ENTRA_CLIENT_SECRET as string;
+export const ENTRA_REDIRECT_URI = env.ENTRA_REDIRECT_URI as string;
+export const IS_ENTRA_ENABLED = Boolean(
+  env.ENTRA_TENANT_ID &&
+    env.ENTRA_CLIENT_ID &&
+    env.ENTRA_CLIENT_SECRET &&
+    env.ENTRA_REDIRECT_URI,
+);

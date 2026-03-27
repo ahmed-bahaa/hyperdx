@@ -2,7 +2,9 @@ import mongoose from 'mongoose';
 
 import type { ObjectId } from '@/models';
 import Alert from '@/models/alert';
+import type { UserRole } from '@/models/user';
 import User from '@/models/user';
+
 export function findUserByAccessKey(accessKey: string) {
   return User.findOne({ accessKey });
 }
@@ -18,6 +20,18 @@ export function findUserByEmail(email: string) {
 
 export function findUsersByTeam(team: string | ObjectId) {
   return User.find({ team }).sort({ createdAt: 1 });
+}
+
+export function updateUserRole(
+  userId: string,
+  teamId: string | ObjectId,
+  role: UserRole,
+) {
+  return User.findOneAndUpdate(
+    { _id: userId, team: teamId },
+    { role },
+    { new: true },
+  );
 }
 
 export async function deleteTeamMember(

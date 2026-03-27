@@ -1,10 +1,13 @@
 import mongoose, { Schema } from 'mongoose';
 import ms from 'ms';
 
+import type { UserRole } from './user';
+
 interface ITeamInvite {
   createdAt: Date;
   email: string;
   name?: string;
+  role: UserRole;
   teamId: string;
   token: string;
   updatedAt: Date;
@@ -25,6 +28,11 @@ const TeamInviteSchema = new Schema(
     token: {
       type: String,
       required: true,
+    },
+    role: {
+      type: String,
+      enum: ['owner', 'admin', 'member', 'viewer'],
+      default: 'member',
     },
   },
   {

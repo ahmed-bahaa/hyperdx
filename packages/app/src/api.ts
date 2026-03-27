@@ -8,6 +8,8 @@ import type {
   MeApiResponse,
   PresetDashboard,
   PresetDashboardFilter,
+  ProjectApiResponse,
+  ProjectsApiResponse,
   RotateApiKeyApiResponse,
   TeamApiResponse,
   TeamInvitationsApiResponse,
@@ -280,14 +282,23 @@ const api = {
     return useMutation<
       { url: string },
       Error | HTTPError,
-      { name?: string; email: string }
+      { name?: string; email: string; role?: 'admin' | 'member' | 'viewer' }
     >({
-      mutationFn: async ({ name, email }: { name?: string; email: string }) =>
+      mutationFn: async ({
+        name,
+        email,
+        role,
+      }: {
+        name?: string;
+        email: string;
+        role?: 'admin' | 'member' | 'viewer';
+      }) =>
         hdxServer(`team/invitation`, {
           method: 'POST',
           json: {
             name,
             email,
+            role,
           },
         }).json<{ url: string }>(),
     });
@@ -364,6 +375,117 @@ const api = {
           method: 'PATCH',
           json: settings,
         }).json<UpdateClickHouseSettingsApiResponse>(),
+    });
+  },
+  useUpdateAllowedAuthMethods() {
+    return useMutation<
+      { allowedAuthMethods: string[] },
+      HTTPError,
+      { allowedAuthMethods: string[] }
+    >({
+      mutationFn: async ({ allowedAuthMethods }) =>
+        hdxServer(`team/auth-methods`, {
+          method: 'PATCH',
+          json: { allowedAuthMethods },
+        }).json<{ allowedAuthMethods: string[] }>(),
+    });
+  },
+  useUpdateMemberRole() {
+    return useMutation<
+      { role: string },
+      HTTPError,
+      { userId: string; role: 'admin' | 'member' | 'viewer' }
+    >({
+      mutationFn: async ({ userId, role }) =>
+        hdxServer(`team/member/${encodeURIComponent(userId)}/role`, {
+          method: 'PATCH',
+          json: { role },
+        }).json<{ role: string }>(),
+    });
+  },
+  useProjects() {
+    return useQuery<ProjectsApiResponse>({
+      queryKey: ['projects'],
+      queryFn: () => hdxServer('projects').json<ProjectsApiResponse>(),
+    });
+  },
+  useProject(id: string) {
+    return useQuery<ProjectApiResponse>({
+      queryKey: ['projects', id],
+      queryFn: () => hdxServer(`projects/${id}`).json<ProjectApiResponse>(),
+      enabled: Boolean(id),
+    });
+  },
+  useCreateProject() {
+    return useMutation<
+      ProjectApiResponse,
+      HTTPError,
+      { name: string; description?: string }
+    >({
+      mutationFn: async data =>
+        hdxServer('projects', {
+          method: 'POST',
+          json: data,
+        }).json<ProjectApiResponse>(),
+    });
+  },
+  useUpdateProject() {
+    return useMutation<
+      ProjectApiResponse,
+      HTTPError,
+      { id: string; name?: string; description?: string }
+    >({
+      mutationFn: async ({ id, ...data }) =>
+        hdxServer(`projects/${id}`, {
+          method: 'PATCH',
+          json: data,
+        }).json<ProjectApiResponse>(),
+    });
+  },
+  useDeleteProject() {
+    return useMutation<{ message: string }, HTTPError, { id: string }>({
+      mutationFn: async ({ id }) =>
+        hdxServer(`projects/${id}`, {
+          method: 'DELETE',
+        }).json<{ message: string }>(),
+    });
+  },
+  useAddProjectMember() {
+    return useMutation<
+      ProjectApiResponse,
+      HTTPError,
+      { projectId: string; userId: string; role: 'admin' | 'editor' | 'viewer' }
+    >({
+      mutationFn: async ({ projectId, userId, role }) =>
+        hdxServer(`projects/${projectId}/members`, {
+          method: 'POST',
+          json: { userId, role },
+        }).json<ProjectApiResponse>(),
+    });
+  },
+  useUpdateProjectMemberRole() {
+    return useMutation<
+      ProjectApiResponse,
+      HTTPError,
+      { projectId: string; userId: string; role: 'admin' | 'editor' | 'viewer' }
+    >({
+      mutationFn: async ({ projectId, userId, role }) =>
+        hdxServer(`projects/${projectId}/members/${userId}`, {
+          method: 'PATCH',
+          json: { role },
+        }).json<ProjectApiResponse>(),
+    });
+  },
+  useRemoveProjectMember() {
+    return useMutation<
+      ProjectApiResponse,
+      HTTPError,
+      { projectId: string; userId: string }
+    >({
+      mutationFn: async ({ projectId, userId }) =>
+        hdxServer(`projects/${projectId}/members/${userId}`, {
+          method: 'DELETE',
+        }).json<ProjectApiResponse>(),
     });
   },
   useTags() {

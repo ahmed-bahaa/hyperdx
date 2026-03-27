@@ -7,6 +7,7 @@ import type { ObjectId } from '.';
 export interface IDashboard extends z.infer<typeof DashboardSchema> {
   _id: ObjectId;
   team: ObjectId;
+  project?: ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +33,12 @@ export default mongoose.model<IDashboard>(
       savedQueryLanguage: { type: String, required: false },
       savedFilterValues: { type: mongoose.Schema.Types.Array, required: false },
       containers: { type: mongoose.Schema.Types.Array, required: false },
+      // Optional project scoping — null/absent means "common" (team-wide)
+      project: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Project',
+        default: null,
+      },
     },
     {
       timestamps: true,

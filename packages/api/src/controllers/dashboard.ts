@@ -13,6 +13,7 @@ import {
   getDashboardAlertsByTile,
   getTeamDashboardAlertsByTile,
 } from '@/controllers/alerts';
+import { getUserProjectIds } from '@/controllers/project';
 import type { ObjectId } from '@/models';
 import type { AlertDocument, IAlert } from '@/models/alert';
 import Dashboard from '@/models/dashboard';
@@ -93,9 +94,24 @@ async function syncDashboardAlerts(
   }
 }
 
-export async function getDashboards(teamId: ObjectId) {
+export async function getDashboards(teamId: ObjectId, userId: ObjectId) {
+  const memberProjectIds = await getUserProjectIds(userId, teamId);
+
+  // Show dashboards that are either common (no project) or belong to a
+  // project the user is a member of
+  const projectFilter =
+    memberProjectIds.length > 0
+      ? {
+          $or: [
+            { project: null },
+            { project: { $exists: false } },
+            { project: { $in: memberProjectIds } },
+          ],
+        }
+      : { $or: [{ project: null }, { project: { $exists: false } }] };
+
   const [_dashboards, alerts] = await Promise.all([
-    Dashboard.find({ team: teamId }),
+    Dashboard.find({ team: teamId, ...projectFilter }),
     getTeamDashboardAlertsByTile(teamId),
   ]);
 

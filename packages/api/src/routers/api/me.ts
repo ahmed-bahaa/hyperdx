@@ -20,6 +20,7 @@ router.get('/', async (req, res: express.Response<MeApiResponse>, next) => {
       createdAt,
       email,
       name,
+      role,
       team: teamId,
     } = req.user;
 
@@ -34,6 +35,7 @@ router.get('/', async (req, res: express.Response<MeApiResponse>, next) => {
       email,
       id,
       name,
+      role: role ?? 'member',
       team,
       usageStatsEnabled: USAGE_STATS_ENABLED,
       aiAssistantEnabled: !!(AI_API_KEY || ANTHROPIC_API_KEY),

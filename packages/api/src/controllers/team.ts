@@ -76,6 +76,14 @@ export function getTeam(id: string | ObjectId, fields?: readonly string[]) {
   return Team.findOne({}, fields);
 }
 
+export function getFirstTeam() {
+  if (config.IS_LOCAL_APP_MODE) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    return LOCAL_APP_TEAM as any;
+  }
+  return Team.findOne({});
+}
+
 export function getTeamByApiKey(apiKey: string) {
   if (config.IS_LOCAL_APP_MODE) {
     return LOCAL_APP_TEAM;
@@ -97,6 +105,13 @@ export function updateTeamClickhouseSettings(
   settings: TeamClickHouseSettings,
 ) {
   return Team.findByIdAndUpdate(teamId, settings, { new: true });
+}
+
+export function updateAllowedAuthMethods(
+  teamId: ObjectId,
+  allowedAuthMethods: string[],
+) {
+  return Team.findByIdAndUpdate(teamId, { allowedAuthMethods }, { new: true });
 }
 
 export async function getTags(teamId: ObjectId) {
